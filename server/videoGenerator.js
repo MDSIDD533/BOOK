@@ -1,9 +1,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const { createCanvas } = require('@napi-rs/canvas');
-const { voiceService } = require('./voiceService');
+const { voiceService, resolveFfmpegPath } = require('./voiceService');
 const {
   ensureFonts,
   buildSceneSurface,
@@ -463,7 +462,7 @@ async function generateCompleteVideo({
 
   onProgress(52, 'Encoding 24fps HD H.264 motion frames & subtitles...');
 
-  const ff = spawn(ffmpegPath, [
+  const ff = spawn(resolveFfmpegPath(), [
     '-y',
     '-f', 'rawvideo',
     '-pix_fmt', 'rgba',
@@ -483,6 +482,9 @@ async function generateCompleteVideo({
   ]);
 
   let ffErr = '';
+  let ffSpawnErr = null;
+  ff.on('error', (err) => { ffSpawnErr = err; });
+  ff.stdin.on('error', () => { /* safely ignore EPIPE if ffmpeg finishes early */ });
   ff.stderr.on('data', (d) => { ffErr += d.toString(); });
 
   const transitionDur = 0.42;
@@ -548,6 +550,11 @@ async function generateCompleteVideo({
 
   ff.stdin.end();
   await new Promise((resolve, reject) => {
+    if (ffSpawnErr) {
+      reject(new Error(`FFmpeg spawn error: ${ffSpawnErr.message}`));
+      return;
+    }
+    ff.on('error', (err) => reject(new Error(`FFmpeg spawn error: ${err.message}`)));
     ff.on('close', (code) => {
       if (code === 0) resolve();
       else reject(new Error(`FFmpeg video mux error (${code}): ${ffErr.slice(-350)}`));

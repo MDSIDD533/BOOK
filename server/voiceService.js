@@ -1,94 +1,30 @@
 const { spawn } = require('child_process');
-const path = require('path');
 const fs = require('fs');
-const readline = require('readline');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+const { nodeKokoroEngine } = require('./nodeVoiceEngine');
+
+function resolveFfmpegPath() {
+  try {
+    const p = require('@ffmpeg-installer/ffmpeg').path;
+    if (p && fs.existsSync(p)) return p;
+  } catch {
+    // Fallback to system PATH ffmpeg if optional binary skipped
+  }
+  return process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+}
 
 class VoiceService {
   constructor() {
-    this.worker = null;
-    this.readyPromise = null;
-    this.pending = new Map();
-    this.reqCounter = 1;
     this.queue = Promise.resolve();
   }
 
   ensureWorker() {
-    if (this.worker && this.readyPromise) {
-      return this.readyPromise;
-    }
-
-    this.readyPromise = new Promise((resolve, reject) => {
-      const scriptPath = path.join(__dirname, 'tts_worker.py');
-      const proc = spawn('python3', ['-u', scriptPath], {
-        cwd: path.join(__dirname, '..'),
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      this.worker = proc;
-      let started = false;
-
-      const rl = readline.createInterface({ input: proc.stdout });
-      rl.on('line', (line) => {
-        let msg;
-        try {
-          msg = JSON.parse(line);
-        } catch {
-          return;
-        }
-        if (msg.ready && !started) {
-          started = true;
-          console.log(`[VoiceEngine] Kokoro-82M Neural Engine ready (${msg.voices.length} studio voices loaded)`);
-          resolve(msg);
-          return;
-        }
-        if (msg.progress_id && this.pending.has(msg.progress_id)) {
-          const { onStep } = this.pending.get(msg.progress_id);
-          if (onStep) onStep(msg);
-          return;
-        }
-        if (msg.id && this.pending.has(msg.id)) {
-          const { res, rej } = this.pending.get(msg.id);
-          this.pending.delete(msg.id);
-          if (msg.ok) res(msg);
-          else rej(new Error(msg.error || 'Voice synthesis failed'));
-        }
-      });
-
-      proc.stderr.on('data', (chunk) => {
-        const txt = chunk.toString().trim();
-        if (txt && !txt.includes('UserWarning')) {
-          console.warn('[VoiceEngine stderr]', txt);
-        }
-      });
-
-      proc.on('exit', (code) => {
-        console.warn(`[VoiceEngine] Worker exited (${code})`);
-        this.worker = null;
-        this.readyPromise = null;
-        if (!started) {
-          reject(new Error(`TTS worker failed to start (code ${code})`));
-        }
-        for (const [, { rej }] of this.pending.entries()) {
-          rej(new Error('TTS worker restarted'));
-        }
-        this.pending.clear();
-      });
-    });
-
-    return this.readyPromise;
+    return nodeKokoroEngine.init();
   }
 
-  sendCommand(payload, onStep = null) {
-    const run = async () => {
-      await this.ensureWorker();
-      return new Promise((res, rej) => {
-        const id = `req_${this.reqCounter++}`;
-        this.pending.set(id, { res, rej, onStep });
-        this.worker.stdin.write(JSON.stringify({ ...payload, id }) + '\n');
-      });
-    };
-    this.queue = this.queue.then(run, run);
-    return this.queue;
+  enqueue(fn) {
+    const next = this.queue.then(fn, fn);
+    this.queue = next.catch(() => {});
+    return next;
   }
 
   async masterAudioToMp3(inWavPath, outMp3Path, { pitchSemitones = 0, effectPreset = 'clean' } = {}) {
@@ -117,8 +53,9 @@ class VoiceService {
     args.push('-ar', '44100', '-ac', '2', '-c:a', 'libmp3lame', '-b:a', '192k', outMp3Path);
 
     await new Promise((resolve, reject) => {
-      const ff = spawn(ffmpegPath, args);
+      const ff = spawn(resolveFfmpegPath(), args);
       let errOut = '';
+      ff.on('error', (err) => reject(new Error(`FFmpeg spawn error: ${err.message}`)));
       ff.stderr.on('data', (d) => { errOut += d.toString(); });
       ff.on('close', (code) => {
         if (code === 0) resolve();
@@ -129,7 +66,7 @@ class VoiceService {
     try {
       fs.unlinkSync(inWavPath);
     } catch {
-      // ignore
+      // Ignore cleanup race on Windows file handles
     }
   }
 
@@ -146,26 +83,27 @@ class VoiceService {
     musicVolume = 0.22,
     outMp3Path,
   }) {
-    const tmpWav = outMp3Path.replace(/\.mp3$/i, '.raw.wav');
-    const result = await this.sendCommand({
-      cmd: 'tts',
-      text,
-      voice,
-      speed: Number(speed) || 1.0,
-      lang: lang || 'auto',
-      blend_voice: blendVoice || null,
-      blend_ratio: Number(blendRatio) || 0,
-      music_style: musicStyle || 'none',
-      music_volume: Number(musicVolume) || 0.22,
-      out_wav: tmpWav,
-    });
+    return this.enqueue(async () => {
+      const tmpWav = outMp3Path.replace(/\.mp3$/i, '.raw.wav');
+      const result = await nodeKokoroEngine.synthesizeClipToWav({
+        text,
+        voice,
+        speed: Number(speed) || 1.0,
+        lang: lang || 'auto',
+        blendVoice: blendVoice || null,
+        blendRatio: Number(blendRatio) || 0,
+        musicStyle: musicStyle || 'none',
+        musicVolume: Number(musicVolume) || 0.22,
+        outWavPath: tmpWav,
+      });
 
-    await this.masterAudioToMp3(tmpWav, outMp3Path, {
-      pitchSemitones: Number(pitchSemitones) || 0,
-      effectPreset: effectPreset || 'clean',
-    });
+      await this.masterAudioToMp3(tmpWav, outMp3Path, {
+        pitchSemitones: Number(pitchSemitones) || 0,
+        effectPreset: effectPreset || 'clean',
+      });
 
-    return result;
+      return result;
+    });
   }
 
   async generateVideoSoundtrack({
@@ -182,31 +120,30 @@ class VoiceService {
     outMp3Path,
     onStep = null,
   }) {
-    const tmpWav = outMp3Path.replace(/\.mp3$/i, '.raw.wav');
-    const result = await this.sendCommand(
-      {
-        cmd: 'batch_scenes',
+    return this.enqueue(async () => {
+      const tmpWav = outMp3Path.replace(/\.mp3$/i, '.raw.wav');
+      const result = await nodeKokoroEngine.synthesizeBatchScenesToWav({
         scenes,
         voice,
         speed: Number(speed) || 1.0,
         lang: lang || 'auto',
-        blend_voice: blendVoice || null,
-        blend_ratio: Number(blendRatio) || 0,
-        music_style: musicStyle || 'cinematic_epic',
-        music_volume: Number(musicVolume) || 0.24,
-        out_wav: tmpWav,
-      },
-      onStep
-    );
+        blendVoice: blendVoice || null,
+        blendRatio: Number(blendRatio) || 0,
+        musicStyle: musicStyle || 'cinematic_epic',
+        musicVolume: Number(musicVolume) || 0.24,
+        outWavPath: tmpWav,
+        onStep,
+      });
 
-    await this.masterAudioToMp3(tmpWav, outMp3Path, {
-      pitchSemitones: Math.abs(Number(pitchSemitones)) >= 0.1 ? Number(pitchSemitones) : 0,
-      effectPreset: effectPreset || 'podcast_warm',
+      await this.masterAudioToMp3(tmpWav, outMp3Path, {
+        pitchSemitones: Math.abs(Number(pitchSemitones)) >= 0.1 ? Number(pitchSemitones) : 0,
+        effectPreset: effectPreset || 'podcast_warm',
+      });
+
+      return result;
     });
-
-    return result;
   }
 }
 
 const voiceService = new VoiceService();
-module.exports = { voiceService };
+module.exports = { voiceService, resolveFfmpegPath };

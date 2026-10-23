@@ -27,13 +27,14 @@
 
 ---
 
-## 🚀 Run Locally
+## 🚀 Run Locally (Windows, macOS & Linux — Zero Python Needed!)
+
+Only **Node.js (v18 / v20 / v22 / v24)** is required — **no Python, no API keys, and no paid tools needed**:
 
 ```bash
 git clone https://github.com/MDSIDD533/BOOK.git
 cd BOOK
 npm install --ignore-scripts
-pip install onnxruntime kokoro-onnx numpy scipy
 npm run dev
 ```
 

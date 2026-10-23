@@ -120,10 +120,10 @@ function drawCaptionOverlay(ctx, activeTiming, timeSec, outW, outH, captionStyle
   ctx.font = `800 ${fontSize}px ${family}`;
   ctx.textBaseline = 'middle';
 
-  const maxBoxWidth = outW * 0.78;
+  const maxBoxWidth = outW * 0.82;
   const lines = wrapWordsWithMetrics(ctx, visibleWords, maxBoxWidth);
-  const lineHeight = fontSize * 1.42;
-  const centerY = outW < outH ? outH * 0.77 : outH * 0.80;
+  const lineHeight = fontSize * 1.40;
+  const centerY = outW < outH ? outH * 0.865 : outH * 0.845;
   const startY = centerY - ((lines.length - 1) * lineHeight) * 0.5;
 
   if (isRtl) {
@@ -161,12 +161,10 @@ function drawCaptionOverlay(ctx, activeTiming, timeSec, outW, outH, captionStyle
     let cursorX = (outW - totalLineW) * 0.5;
     const y = startY + lIdx * lineHeight;
 
-    // Subtle dark glass backdrop behind active line for ultra legibility
-    if (captionStyle === 'cinema_clean') {
-      ctx.fillStyle = 'rgba(8, 12, 24, 0.68)';
-      drawRoundedRect(ctx, cursorX - 20, y - lineHeight * 0.44, totalLineW + 40, lineHeight * 0.88, 14);
-      ctx.fill();
-    }
+    // Clean dark cinema glass backdrop behind every caption line for razor-sharp readability
+    ctx.fillStyle = captionStyle === 'cinema_clean' ? 'rgba(6, 10, 22, 0.76)' : 'rgba(6, 10, 22, 0.66)';
+    drawRoundedRect(ctx, cursorX - 20, y - lineHeight * 0.45, totalLineW + 40, lineHeight * 0.90, 14);
+    ctx.fill();
 
     lineArr.forEach((item, wPos) => {
       const wWidth = widths[wPos];
@@ -471,8 +469,8 @@ async function generateCompleteVideo({
     '-i', 'pipe:0',
     '-i', outAudioMp3Path,
     '-c:v', 'libx264',
-    '-preset', 'veryfast',
-    '-crf', '21',
+    '-preset', 'fast',
+    '-crf', '18',
     '-pix_fmt', 'yuv420p',
     '-c:a', 'aac',
     '-b:a', '192k',
@@ -504,7 +502,46 @@ async function generateCompleteVideo({
     }
 
     const cur = sceneMetas[scIdx];
-    const curProgress = Math.max(0, Math.min(1, (t - cur.start) / Math.max(0.2, cur.duration)));
+    const localT = Math.max(0, t - cur.start);
+    const curProgress = Math.max(0, Math.min(1, localT / Math.max(0.2, cur.duration)));
+
+    // Real 24fps Cinema Camera Shake + Impact Hit-Flash synchronized to Foley strikes!
+    let shakeX = 0;
+    let shakeY = 0;
+    let flashAlpha = 0;
+    let flashColor = '255, 250, 235';
+    const act = cur.stageAction || '';
+    const addImpact = (hitTime, ampPx, flashPeak, color = '255, 250, 235') => {
+      const dt = localT - hitTime;
+      if (dt >= 0 && dt < 0.45) {
+        const decay = Math.exp(-dt * 9.5);
+        shakeX += Math.sin(dt * 68) * ampPx * decay;
+        shakeY += Math.cos(dt * 53) * ampPx * 0.78 * decay;
+      }
+      if (dt >= -0.02 && dt < 0.16) {
+        const f = Math.max(0, 1 - Math.abs(dt - 0.02) / 0.14);
+        if (f * flashPeak > flashAlpha) {
+          flashAlpha = f * flashPeak;
+          flashColor = color;
+        }
+      }
+    };
+
+    if (act === 'shadow_throws_punch') {
+      addImpact(cur.duration * 0.25, outW * 0.020, 0.30, '216, 180, 254');
+    } else if (act === 'shadow_kicks_leo_down') {
+      addImpact(cur.duration * 0.25, outW * 0.028, 0.42, '255, 237, 213');
+      addImpact(cur.duration * 0.65, outW * 0.018, 0.20, '255, 255, 255');
+    } else if (act === 'leo_crushing_jaw_punch') {
+      addImpact(cur.duration * 0.24, outW * 0.036, 0.56, '254, 240, 138');
+    } else if (act === 'referee_whistle_start') {
+      addImpact(cur.duration * 0.14, outW * 0.010, 0.18, '255, 255, 255');
+    }
+
+    ctx.save();
+    if (shakeX !== 0 || shakeY !== 0) {
+      ctx.translate(shakeX, shakeY);
+    }
 
     drawSceneCameraFrame(ctx, cur.surface, outW, outH, cur.cameraMotion || 'zoom_in', curProgress, 1.0);
 
@@ -516,7 +553,43 @@ async function generateCompleteVideo({
     }
 
     drawAtmosphericParticles(ctx, particles, t, outW, outH);
-    renderSceneStoryCast(ctx, cur, t - cur.start, t, outW, outH);
+
+    // If custom high-res cinema plate is present, keep 100% pure 3D artwork + live 24fps VFX overlays only!
+    if (cur.imagePath || cur.imageDataUrl) {
+      if (act === 'leo_rises_aura' || act === 'leo_crushing_jaw_punch') {
+        for (let e = 0; e < 26; e++) {
+          const ex = ((e * 97 + Math.sin(t * 2.4 + e) * 38) % outW + outW) % outW;
+          const ey = outH - (((t * 145 + e * 63) % (outH * 0.85)));
+          ctx.fillStyle = e % 2 === 0 ? 'rgba(253, 224, 71, 0.72)' : 'rgba(249, 115, 22, 0.65)';
+          ctx.beginPath();
+          ctx.arc(ex, ey, 2.2 + (e % 3) * 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (act === 'leo_ultimate_champion') {
+        const colors = ['#facc15', '#f59e0b', '#ef4444', '#38bdf8', '#fde047'];
+        for (let c = 0; c < 40; c++) {
+          const cxp = ((c * 79 + Math.sin(t * 2.2 + c) * 32) % outW + outW) % outW;
+          const cyp = ((c * 53 + localT * (92 + (c % 5) * 18)) % (outH * 0.88));
+          ctx.save();
+          ctx.translate(cxp, cyp);
+          ctx.rotate(t * 3.8 + c);
+          ctx.fillStyle = colors[c % colors.length];
+          ctx.fillRect(-5, -2.5, 10, 5);
+          ctx.restore();
+        }
+      }
+    } else {
+      renderSceneStoryCast(ctx, cur, localT, t, outW, outH);
+    }
+
+    ctx.restore();
+
+    if (flashAlpha > 0.005) {
+      ctx.save();
+      ctx.fillStyle = `rgba(${flashColor}, ${flashAlpha.toFixed(3)})`;
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.restore();
+    }
 
     if (showHeadlines && cur.headline) {
       drawHeadlineBadge(ctx, cur.headline, scIdx, sceneMetas.length, t - cur.start, cur.duration, outW, outH);

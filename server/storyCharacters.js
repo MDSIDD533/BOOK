@@ -555,6 +555,369 @@ function drawStoneWell(ctx, cx, groundY, size, timeSec, { showLionReflection = f
 }
 
 /**
+ * Dynamic 24-FPS Illustrated Street-Fighter / Championship Boxer Character ('leo' or giant 'shadow')
+ */
+function drawFighter(
+  ctx,
+  cx,
+  groundY,
+  size,
+  timeSec,
+  {
+    variant = 'leo',
+    facing = 1,
+    pose = 'guard',
+    aura = false,
+  } = {}
+) {
+  const isShadow = variant === 'shadow';
+  const s = size * (isShadow ? 1.25 : 1.0);
+  const skin = isShadow ? '#334155' : '#f59e0b';
+  const skinHighlight = isShadow ? '#475569' : '#fbbf24';
+  const shortsMain = isShadow ? '#3b0764' : '#dc2626';
+  const shortsTrim = isShadow ? '#a855f7' : '#fbbf24';
+  const gloveColor = isShadow ? '#7e22ce' : '#ef4444';
+  const hairColor = isShadow ? '#090d16' : '#1e1b18';
+
+  const bounce = (pose === 'guard' || pose === 'shadowbox') ? Math.abs(Math.sin(timeSec * 6.5)) * (s * 0.035) : 0;
+
+  if (aura) {
+    ctx.save();
+    const pulse = 0.84 + 0.16 * Math.sin(timeSec * 9.0);
+    const auraColor = isShadow ? '168, 85, 247' : '251, 191, 36';
+    const g = ctx.createRadialGradient(cx, groundY - s * 0.55, s * 0.08, cx, groundY - s * 0.55, s * 0.86 * pulse);
+    g.addColorStop(0, `rgba(${auraColor}, 0.60)`);
+    g.addColorStop(0.55, `rgba(${auraColor}, 0.22)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, groundY - s * 0.55, s * 0.86 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (pose === 'knocked_out') {
+    drawContactShadow(ctx, cx, groundY + s * 0.02, s * 0.68, s * 0.10, 0.55);
+    ctx.save();
+    ctx.translate(cx, groundY - s * 0.08);
+    ctx.scale(facing, 1);
+
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = Math.max(6, s * 0.11);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.10, 0);
+    ctx.lineTo(-s * 0.52, s * 0.03);
+    ctx.stroke();
+
+    ctx.fillStyle = shortsMain;
+    ctx.fillRect(-s * 0.18, -s * 0.11, s * 0.24, s * 0.19);
+    ctx.fillStyle = skin;
+    ctx.beginPath();
+    ctx.ellipse(s * 0.20, -s * 0.02, s * 0.24, s * 0.13, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(s * 0.48, -s * 0.01, s * 0.11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = gloveColor;
+    ctx.beginPath();
+    ctx.arc(s * 0.12, s * 0.08, s * 0.085, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let st = 0; st < 3; st++) {
+      const ang = timeSec * 4.5 + (st * Math.PI * 2) / 3;
+      const sx = s * 0.48 + Math.cos(ang) * (s * 0.16);
+      const sy = -s * 0.22 + Math.sin(ang) * (s * 0.05);
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      ctx.arc(sx, sy, s * 0.028, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+
+  drawContactShadow(ctx, cx, groundY + s * 0.02, s * 0.42, s * 0.08, 0.46);
+
+  ctx.save();
+  const crouchDrop =
+    pose === 'duck'
+      ? s * 0.30
+      : pose === 'knockdown_knee'
+        ? s * 0.34
+        : 0;
+  ctx.translate(cx, groundY - bounce + crouchDrop * 0.15);
+  ctx.scale(facing, 1);
+
+  const hipY = -s * 0.48 + crouchDrop * 0.65;
+  const torsoLean =
+    pose === 'punch' || pose === 'uppercut'
+      ? 0.22
+      : pose === 'duck'
+        ? 0.44
+        : pose === 'recoil'
+          ? -0.34
+          : pose === 'kick'
+            ? -0.18
+            : 0.06;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = skin;
+  ctx.lineWidth = Math.max(5, s * 0.095);
+
+  if (pose === 'kick') {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.08, hipY);
+    ctx.lineTo(-s * 0.14, 0);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(s * 0.05, hipY);
+    ctx.lineTo(s * 0.58, hipY - s * 0.12);
+    ctx.stroke();
+
+    ctx.fillStyle = shortsMain;
+    ctx.beginPath();
+    ctx.ellipse(s * 0.62, hipY - s * 0.13, s * 0.085, s * 0.05, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const step = pose === 'shadowbox' ? Math.sin(timeSec * 6.5) * (s * 0.04) : 0;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.10, hipY);
+    ctx.lineTo(-s * 0.22 - step, hipY * 0.48);
+    ctx.lineTo(-s * 0.24 - step, 0);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(s * 0.10, hipY);
+    if (pose === 'knockdown_knee') {
+      ctx.lineTo(s * 0.16, -s * 0.03);
+      ctx.lineTo(s * 0.02, -s * 0.02);
+    } else {
+      ctx.lineTo(s * 0.22 + step, hipY * 0.48);
+      ctx.lineTo(s * 0.25 + step, 0);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = shortsMain;
+    ctx.fillRect(-s * 0.30 - step, -s * 0.08, s * 0.13, s * 0.085);
+    if (pose !== 'knockdown_knee') {
+      ctx.fillRect(s * 0.19 + step, -s * 0.08, s * 0.14, s * 0.085);
+    }
+  }
+
+  ctx.save();
+  ctx.translate(0, hipY);
+  ctx.rotate(torsoLean);
+
+  ctx.fillStyle = shortsMain;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.17, -s * 0.03);
+  ctx.lineTo(s * 0.17, -s * 0.03);
+  ctx.lineTo(s * 0.22, s * 0.17);
+  ctx.lineTo(-s * 0.22, s * 0.17);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = shortsTrim;
+  ctx.fillRect(-s * 0.175, -s * 0.05, s * 0.35, s * 0.048);
+
+  if (pose === 'victory') {
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.ellipse(0, -s * 0.025, s * 0.095, s * 0.062, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  const chestW = isShadow ? s * 0.25 : s * 0.19;
+  const torsoGrad = ctx.createLinearGradient(-chestW, -s * 0.36, chestW, 0);
+  torsoGrad.addColorStop(0, skinHighlight);
+  torsoGrad.addColorStop(1, skin);
+  ctx.fillStyle = torsoGrad;
+  ctx.beginPath();
+  ctx.moveTo(-chestW, -s * 0.35);
+  ctx.lineTo(chestW, -s * 0.35);
+  ctx.lineTo(s * 0.15, -s * 0.03);
+  ctx.lineTo(-s * 0.15, -s * 0.03);
+  ctx.closePath();
+  ctx.fill();
+
+  const headR = s * 0.115;
+  const headX = pose === 'recoil' ? -s * 0.05 : s * 0.03;
+  const headY = -s * 0.48;
+  ctx.fillStyle = skinHighlight;
+  ctx.beginPath();
+  ctx.arc(headX, headY, headR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = hairColor;
+  ctx.beginPath();
+  ctx.arc(headX - headR * 0.08, headY - headR * 0.18, headR * 1.02, Math.PI * 0.95, Math.PI * 2.05);
+  ctx.fill();
+
+  if (!isShadow) {
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(headX - headR * 1.02, headY - headR * 0.32, headR * 2.04, headR * 0.28);
+    const flutter = Math.sin(timeSec * 9.0) * (s * 0.035);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = Math.max(3, s * 0.028);
+    ctx.beginPath();
+    ctx.moveTo(headX - headR * 0.98, headY - headR * 0.20);
+    ctx.quadraticCurveTo(headX - headR * 1.6, headY - headR * 0.08 + flutter, headX - headR * 2.1, headY + headR * 0.18 + flutter);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = isShadow ? '#e879f9' : '#0f172a';
+  ctx.beginPath();
+  ctx.arc(headX + headR * 0.45, headY - headR * 0.05, headR * 0.16, 0, Math.PI * 2);
+  ctx.fill();
+
+  const drawGloveArm = (ax, ay, gx, gy) => {
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = Math.max(5, s * 0.082);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(gx, gy);
+    ctx.stroke();
+
+    ctx.fillStyle = gloveColor;
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, s * 0.085, s * 0.072, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  };
+
+  if (pose === 'victory') {
+    const pump = Math.sin(timeSec * 7.5) * (s * 0.04);
+    drawGloveArm(-s * 0.14, -s * 0.31, -s * 0.26, -s * 0.68 + pump);
+    drawGloveArm(s * 0.14, -s * 0.31, s * 0.28, -s * 0.72 - pump);
+  } else if (pose === 'punch' || (pose === 'shadowbox' && Math.sin(timeSec * 8.0) > 0.25)) {
+    const ext = pose === 'shadowbox' ? Math.max(0, Math.sin(timeSec * 8.0)) * (s * 0.32) : s * 0.48;
+    drawGloveArm(-s * 0.10, -s * 0.30, s * 0.14, -s * 0.34);
+    drawGloveArm(s * 0.12, -s * 0.31, s * 0.22 + ext, -s * 0.36);
+  } else if (pose === 'uppercut') {
+    drawGloveArm(-s * 0.10, -s * 0.28, s * 0.10, -s * 0.26);
+    drawGloveArm(s * 0.12, -s * 0.30, s * 0.44, -s * 0.66);
+  } else if (pose === 'recoil') {
+    drawGloveArm(-s * 0.12, -s * 0.28, -s * 0.24, -s * 0.12);
+    drawGloveArm(s * 0.10, -s * 0.28, s * 0.22, -s * 0.10);
+  } else {
+    const guardBob = Math.sin(timeSec * 6.5) * (s * 0.025);
+    drawGloveArm(-s * 0.10, -s * 0.29, s * 0.15, -s * 0.38 + guardBob);
+    drawGloveArm(s * 0.12, -s * 0.29, s * 0.27, -s * 0.43 - guardBob);
+  }
+
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawReferee(ctx, cx, groundY, size, timeSec, { whistle = false, counting = false } = {}) {
+  const s = size * 0.90;
+  drawContactShadow(ctx, cx, groundY + s * 0.02, s * 0.34, s * 0.07, 0.38);
+
+  ctx.save();
+  ctx.translate(cx, groundY);
+
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = Math.max(5, s * 0.08);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.08, -s * 0.44);
+  ctx.lineTo(-s * 0.12, 0);
+  ctx.moveTo(s * 0.08, -s * 0.44);
+  ctx.lineTo(s * 0.12, 0);
+  ctx.stroke();
+
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(-s * 0.15, -s * 0.76, s * 0.30, s * 0.33);
+  ctx.fillStyle = '#0f172a';
+  for (let st = -2; st <= 2; st++) {
+    ctx.fillRect(st * (s * 0.056) - s * 0.015, -s * 0.76, s * 0.028, s * 0.33);
+  }
+
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath();
+  ctx.arc(0, -s * 0.87, s * 0.095, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#f8fafc';
+  ctx.lineWidth = Math.max(4.5, s * 0.065);
+  if (whistle) {
+    ctx.beginPath();
+    ctx.moveTo(s * 0.12, -s * 0.70);
+    ctx.lineTo(s * 0.05, -s * 0.84);
+    ctx.stroke();
+    const pulse = (timeSec * 2.2) % 1;
+    ctx.strokeStyle = `rgba(253, 224, 71, ${(1 - pulse) * 0.9})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(s * 0.09, -s * 0.86, s * (0.08 + pulse * 0.28), -0.8, 0.8);
+    ctx.stroke();
+  } else if (counting) {
+    const chop = Math.sin(timeSec * 5.0);
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.12, -s * 0.70);
+    ctx.lineTo(-s * 0.34, -s * 0.56 + chop * (s * 0.18));
+    ctx.stroke();
+
+    const countNum = (Math.floor(timeSec * 1.4) % 8) + 1;
+    ctx.fillStyle = '#fde047';
+    ctx.font = `bold ${Math.round(s * 0.24)}px JakartaExtraBold, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${countNum}!`, -s * 0.36, -s * 0.82);
+  }
+  ctx.restore();
+}
+
+function drawImpactBurst(ctx, x, y, radius, timeSec, color = '#fbbf24') {
+  const pulse = 0.75 + 0.25 * Math.sin(timeSec * 18.0);
+  ctx.save();
+  ctx.translate(x, y);
+  const g = ctx.createRadialGradient(0, 0, 2, 0, 0, radius * pulse);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.35, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * pulse, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#fef08a';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 10; i++) {
+    const ang = (i / 10) * Math.PI * 2 + timeSec * 2.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(ang) * radius * 0.25, Math.sin(ang) * radius * 0.25);
+    ctx.lineTo(Math.cos(ang) * radius * 1.15 * pulse, Math.sin(ang) * radius * 1.15 * pulse);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawVictoryConfetti(ctx, outW, outH, globalTime) {
+  const colors = ['#fde047', '#ef4444', '#38bdf8', '#a855f7', '#34d399'];
+  ctx.save();
+  for (let i = 0; i < 42; i++) {
+    const x = ((i * 97 + Math.sin(globalTime * 2 + i) * 35) % outW + outW) % outW;
+    const y = ((i * 53 + globalTime * 155) % (outH * 0.74));
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(globalTime * 4 + i);
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(-5, -3, 10, 6);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/**
  * Master Scene Cast Director: Renders animated characters & props matched to the scene beat!
  */
 function renderSceneStoryCast(ctx, scene, localTime, globalTime, outW, outH) {
@@ -689,6 +1052,147 @@ function renderSceneStoryCast(ctx, scene, localTime, globalTime, outW, outH) {
       celebrating: true,
     });
     drawDeer(ctx, outW * 0.77, stageY + 4, minDim * 0.21, globalTime + 0.8, { facing: -1 });
+  } else if (action === 'fighter_champion_intro') {
+    const fs = minDim * 0.34;
+    drawFighter(ctx, outW * 0.50, stageY + 14, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'shadowbox',
+      aura: true,
+    });
+  } else if (action === 'challenger_shadow_enters') {
+    const fs = minDim * 0.31;
+    const walkIn = outW * (0.86 - Math.min(1, relP * 1.4) * 0.16);
+    drawFighter(ctx, outW * 0.26, stageY + 14, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'guard',
+    });
+    drawFighter(ctx, walkIn, stageY + 14, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'guard',
+      aura: true,
+    });
+  } else if (action === 'referee_whistle_start') {
+    const fs = minDim * 0.30;
+    drawReferee(ctx, outW * 0.50, stageY + 6, fs * 0.92, globalTime, { whistle: true });
+    drawFighter(ctx, outW * 0.24, stageY + 16, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'guard',
+    });
+    drawFighter(ctx, outW * 0.76, stageY + 16, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'guard',
+    });
+  } else if (action === 'shadow_throws_punch') {
+    const fs = minDim * 0.32;
+    const lunge = Math.min(1, relP * 1.8) * (outW * 0.11);
+    drawFighter(ctx, outW * 0.31, stageY + 16, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'guard',
+    });
+    drawFighter(ctx, outW * 0.74 - lunge, stageY + 16, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'punch',
+      aura: true,
+    });
+    drawImpactBurst(ctx, outW * 0.44, stageY - fs * 0.72, minDim * 0.08, globalTime, '#a855f7');
+  } else if (action === 'leo_ducks_punch') {
+    const fs = minDim * 0.32;
+    drawFighter(ctx, outW * 0.65, stageY + 16, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'punch',
+    });
+    drawFighter(ctx, outW * 0.36, stageY + 20, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'duck',
+      aura: true,
+    });
+    // Wind whoosh speed lines above ducking Leo!
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.82)';
+    ctx.lineWidth = 3.5;
+    for (let w = 0; w < 3; w++) {
+      const wy = stageY - fs * (0.86 + w * 0.07);
+      ctx.beginPath();
+      ctx.moveTo(outW * 0.62, wy);
+      ctx.lineTo(outW * 0.20, wy);
+      ctx.stroke();
+    }
+    ctx.restore();
+  } else if (action === 'shadow_kicks_leo_down') {
+    const fs = minDim * 0.31;
+    const knocked = relP > 0.48;
+    const slideBack = Math.min(1, Math.max(0, (relP - 0.35) * 2.0)) * (outW * 0.10);
+    drawFighter(ctx, outW * 0.67, stageY + 16, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'kick',
+    });
+    drawFighter(ctx, outW * 0.33 - slideBack, stageY + 18, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: knocked ? 'knockdown_knee' : 'recoil',
+    });
+    drawImpactBurst(ctx, outW * 0.42, stageY - fs * 0.56, minDim * 0.11, globalTime, '#ef4444');
+  } else if (action === 'referee_countdown') {
+    const fs = minDim * 0.31;
+    drawFighter(ctx, outW * 0.30, stageY + 20, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'knockdown_knee',
+    });
+    drawReferee(ctx, outW * 0.58, stageY + 12, fs, globalTime, { counting: true });
+    drawFighter(ctx, outW * 0.82, stageY + 14, fs * 0.90, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'guard',
+    });
+  } else if (action === 'leo_rises_aura') {
+    const fs = minDim * 0.34;
+    const risen = relP > 0.32;
+    drawFighter(ctx, outW * 0.46, stageY + 16, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: risen ? 'guard' : 'knockdown_knee',
+      aura: true,
+    });
+  } else if (action === 'leo_crushing_jaw_punch') {
+    const fs = minDim * 0.32;
+    const dash = Math.min(1, relP * 2.0) * (outW * 0.14);
+    drawFighter(ctx, outW * 0.67, stageY + 16, fs, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'recoil',
+    });
+    drawFighter(ctx, outW * 0.28 + dash, stageY + 16, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'uppercut',
+      aura: true,
+    });
+    drawImpactBurst(ctx, outW * 0.56, stageY - fs * 0.82, minDim * 0.14, globalTime, '#fde047');
+  } else if (action === 'leo_ultimate_champion') {
+    const fs = minDim * 0.32;
+    drawVictoryConfetti(ctx, outW, outH, globalTime);
+    drawFighter(ctx, outW * 0.72, stageY + 22, fs * 0.94, globalTime, {
+      variant: 'shadow',
+      facing: -1,
+      pose: 'knocked_out',
+    });
+    drawFighter(ctx, outW * 0.35, stageY + 14, fs, globalTime, {
+      variant: 'leo',
+      facing: 1,
+      pose: 'victory',
+      aura: true,
+    });
   } else if (scene.character && scene.character !== 'none') {
     // Human protagonist walker / lantern bearer for human stories!
     const walkBob = Math.abs(Math.sin(globalTime * 4.2)) * 4;

@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { VOICE_CATALOG } = require('./voiceCatalog');
 const { voiceService } = require('./voiceService');
 const { generateLocalStoryboard, detectSceneArchetype } = require('./scriptDirector');
-const { parseStoryIntoScenes, generateStoryFromTopic } = require('./storyAnalyzer');
+const { FIGHT_ACTION_PLATES, parseStoryIntoScenes, generateStoryFromTopic } = require('./storyAnalyzer');
 const { generateCompleteVideo, ASPECT_DIMENSIONS } = require('./videoGenerator');
 const { renderProceduralBackdrop } = require('./sceneRenderer');
 const { renderSceneStoryCast } = require('./storyCharacters');
@@ -27,10 +27,36 @@ if (process.argv.includes('--production')) {
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
 function buildDefaultDemoVideos() {
+  const items = [];
+  const leoMp4 = path.join(VIDEOS_DIR, 'Leo_vs_Shadow_Street_Fighter.mp4');
+  if (fs.existsSync(leoMp4)) {
+    items.push({
+      id: 'demo_leo_vs_shadow',
+      title: 'Leo vs. Shadow: Ultimate Street Fighter Champion (HD Cinema + Foley SFX)',
+      aspectRatio: '9:16',
+      visualStyle: 'cinematic',
+      captionStyle: 'karaoke_pill',
+      voice: 'am_michael',
+      voiceName: 'Michael (Cinema Trailer + Foley SFX)',
+      musicStyle: 'driving_pulse',
+      duration: 49.1,
+      width: 720,
+      height: 1280,
+      scenesCount: 10,
+      lang: 'en-us',
+      url: '/videos/Leo_vs_Shadow_Street_Fighter.mp4',
+      audioUrl: fs.existsSync(path.join(VIDEOS_DIR, 'Leo_vs_Shadow_Street_Fighter.mp3'))
+        ? '/videos/Leo_vs_Shadow_Street_Fighter.mp3'
+        : null,
+      thumbUrl: fs.existsSync(path.join(VIDEOS_DIR, 'Leo_vs_Shadow_Thumb.jpg'))
+        ? '/videos/Leo_vs_Shadow_Thumb.jpg'
+        : null,
+      createdAt: new Date().toISOString(),
+    });
+  }
   const demoMp4 = path.join(VIDEOS_DIR, 'Sher_Aur_Samajhdar_Khargosh.mp4');
-  if (!fs.existsSync(demoMp4)) return [];
-  return [
-    {
+  if (fs.existsSync(demoMp4)) {
+    items.push({
       id: 'demo_sher_aur_khargosh',
       title: 'Sher Aur Samajhdar Khargosh',
       aspectRatio: '9:16',
@@ -50,22 +76,29 @@ function buildDefaultDemoVideos() {
         : null,
       thumbUrl: null,
       createdAt: new Date().toISOString(),
-    },
-  ];
+    });
+  }
+  return items;
 }
 
 function readLibrary() {
+  const defaults = buildDefaultDemoVideos();
   try {
     if (fs.existsSync(LIB_FILE)) {
       const parsed = JSON.parse(fs.readFileSync(LIB_FILE, 'utf8'));
       if (parsed && Array.isArray(parsed.videos) && parsed.videos.length > 0) {
-        return parsed;
+        const existingUrls = new Set(parsed.videos.map((v) => v.url));
+        const merged = [...parsed.videos];
+        for (const d of defaults) {
+          if (!existingUrls.has(d.url)) merged.unshift(d);
+        }
+        return { ...parsed, videos: merged };
       }
     }
   } catch (err) {
     console.warn('[Library] Read error:', err.message);
   }
-  return { videos: buildDefaultDemoVideos(), voices: [] };
+  return { videos: defaults, voices: [] };
 }
 
 function writeLibrary(data) {
@@ -122,11 +155,17 @@ async function createApp(httpServer) {
     res.json({ ok: true, library: lib });
   });
 
-  // Instant procedural scene preview image endpoint so Storyboard cards immediately show vivid previews!
+  // Instant procedural or high-res cinema plate scene preview endpoint!
   app.get('/api/scene-preview', (req, res) => {
+    const stageAction = String(req.query.action || 'none');
+    const platePath = FIGHT_ACTION_PLATES && FIGHT_ACTION_PLATES[stageAction];
+    if (platePath && fs.existsSync(platePath)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.sendFile(platePath);
+    }
     const archetype = String(req.query.archetype || detectSceneArchetype(String(req.query.prompt || ''), 0));
     const style = String(req.query.style || 'cinematic');
-    const stageAction = String(req.query.action || 'none');
     const seed = Number(req.query.seed) || 42;
     const ratio = String(req.query.aspect || '16:9');
     const w = ratio === '9:16' ? 360 : ratio === '1:1' ? 420 : 560;

@@ -11,6 +11,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const VOCAB = require('./kokoroVocab.json');
 const { textToKokoroPhonemes, detectLanguage } = require('./romanUrduPhonetics');
+const { renderTimelineFoleySfx } = require('./cinemaSfx');
 
 const SAMPLE_RATE = 24000;
 const STYLE_DIM = 256;
@@ -419,16 +420,21 @@ class NodeKokoroEngine {
     return { audio: combined, detectedLang, timings };
   }
 
-  mixAndSaveWav(voiceMono, outWavPath, { musicStyle = 'none', musicVolume = 0.22 } = {}) {
+  mixAndSaveWav(voiceMono, outWavPath, { musicStyle = 'none', musicVolume = 0.22, sfxStereo = null } = {}) {
     const n = voiceMono.length;
-    if (musicStyle && musicStyle !== 'none') {
-      const vol = Math.max(0.0, Math.min(0.85, Number(musicVolume) || 0.22));
-      const { left, right } = composeStereoMusic(n, musicStyle);
+    const hasMusic = Boolean(musicStyle && musicStyle !== 'none');
+    if (hasMusic || sfxStereo) {
+      const vol = hasMusic ? Math.max(0.0, Math.min(0.85, Number(musicVolume) || 0.22)) : 0;
+      const music = hasMusic ? composeStereoMusic(n, musicStyle) : null;
       const mixL = new Float32Array(n);
       const mixR = new Float32Array(n);
       for (let i = 0; i < n; i++) {
-        mixL[i] = Math.tanh((voiceMono[i] * 0.92 + left[i] * vol) * 1.05);
-        mixR[i] = Math.tanh((voiceMono[i] * 0.92 + right[i] * vol) * 1.05);
+        const mL = music ? music.left[i] * vol : 0;
+        const mR = music ? music.right[i] * vol : 0;
+        const fxL = sfxStereo && i < sfxStereo.left.length ? sfxStereo.left[i] : 0;
+        const fxR = sfxStereo && i < sfxStereo.right.length ? sfxStereo.right[i] : 0;
+        mixL[i] = Math.tanh((voiceMono[i] * 0.94 + mL + fxL) * 1.06);
+        mixR[i] = Math.tanh((voiceMono[i] * 0.94 + mR + fxR) * 1.06);
       }
       writeStereoWav16(outWavPath, mixL, mixR, SAMPLE_RATE);
     } else {
@@ -529,7 +535,8 @@ class NodeKokoroEngine {
 
     parts.push(outroTail);
     const fullVoice = concatFloat32(parts);
-    this.mixAndSaveWav(fullVoice, outWavPath, { musicStyle, musicVolume });
+    const sfxStereo = renderTimelineFoleySfx(fullVoice.length, scenes, sceneMetas);
+    this.mixAndSaveWav(fullVoice, outWavPath, { musicStyle, musicVolume, sfxStereo });
 
     return {
       ok: true,

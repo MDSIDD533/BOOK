@@ -16,19 +16,56 @@ const { renderSceneStoryCast } = require('./storyCharacters');
 const ROOT_DIR = path.join(__dirname, '..');
 const DATA_DIR = path.join(ROOT_DIR, 'data');
 const MEDIA_DIR = path.join(DATA_DIR, 'media');
+const VIDEOS_DIR = path.join(ROOT_DIR, 'videos');
+const PREVIEW_DIR = path.join(ROOT_DIR, 'preview');
 const LIB_FILE = path.join(DATA_DIR, 'library.json');
 
+if (process.argv.includes('--production')) {
+  process.env.NODE_ENV = 'production';
+}
+
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
+
+function buildDefaultDemoVideos() {
+  const demoMp4 = path.join(VIDEOS_DIR, 'Sher_Aur_Samajhdar_Khargosh.mp4');
+  if (!fs.existsSync(demoMp4)) return [];
+  return [
+    {
+      id: 'demo_sher_aur_khargosh',
+      title: 'Sher Aur Samajhdar Khargosh',
+      aspectRatio: '9:16',
+      visualStyle: 'cinematic',
+      captionStyle: 'karaoke_pill',
+      voice: 'am_adam',
+      voiceName: 'Zain (Adam)',
+      musicStyle: 'cinematic_epic',
+      duration: 75.18,
+      width: 720,
+      height: 1280,
+      scenesCount: 12,
+      lang: 'roman-urdu',
+      url: '/videos/Sher_Aur_Samajhdar_Khargosh.mp4',
+      audioUrl: fs.existsSync(path.join(VIDEOS_DIR, 'Sher_Aur_Samajhdar_Khargosh.mp3'))
+        ? '/videos/Sher_Aur_Samajhdar_Khargosh.mp3'
+        : null,
+      thumbUrl: null,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
 
 function readLibrary() {
   try {
     if (fs.existsSync(LIB_FILE)) {
-      return JSON.parse(fs.readFileSync(LIB_FILE, 'utf8'));
+      const parsed = JSON.parse(fs.readFileSync(LIB_FILE, 'utf8'));
+      if (parsed && Array.isArray(parsed.videos) && parsed.videos.length > 0) {
+        return parsed;
+      }
     }
   } catch (err) {
     console.warn('[Library] Read error:', err.message);
   }
-  return { videos: [], voices: [] };
+  return { videos: buildDefaultDemoVideos(), voices: [] };
 }
 
 function writeLibrary(data) {
@@ -42,6 +79,8 @@ async function createApp(httpServer) {
   app.use(cors());
   app.use(express.json({ limit: '45mb' }));
   app.use('/media', express.static(MEDIA_DIR, { maxAge: '1h' }));
+  app.use('/videos', express.static(VIDEOS_DIR, { maxAge: '1h' }));
+  app.use('/preview', express.static(PREVIEW_DIR, { maxAge: '1h' }));
 
   // Warm up Kokoro-82M neural engine asynchronously right on server startup!
   voiceService.ensureWorker().catch((err) => {
@@ -393,7 +432,8 @@ createApp(httpServer)
   .then((app) => {
     httpServer.on('request', app);
     httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log(`✨ NoorStudio AI (Video + Voice Generator) running at http://0.0.0.0:${PORT}`);
+      console.log(`\n✨ NoorStudio AI (Video + Voice Generator) is LIVE!`);
+      console.log(`👉 Browser mein yeh link kholein: http://localhost:${PORT}\n`);
     });
   })
   .catch((err) => {

@@ -9,10 +9,12 @@ const MOTIONS = ['zoom_in', 'pan_right', 'zoom_out', 'pan_left', 'drift_up'];
 
 function cleanMarkdownAndNormalizeStory(rawText) {
   let s = String(rawText || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/^\s*\d+[.)]\s*$/gm, '')
+    .replace(/^\s*\d+[.)]\s+/gm, '')
     .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
     .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')
     .replace(/^#+\s*/gm, '')
-    .replace(/\r\n/g, '\n')
     .trim();
 
   // Gently complete common cut-off trailing Urdu idiom if user paste cut right at "sab ki jaan"
@@ -47,7 +49,12 @@ function splitStoryBeats(rawStory) {
     }
   }
 
-  // Group adjacent related beats nicely into 6–10 crisp dramatic scenes so every major moment shines!
+  // If the author wrote 12 or fewer crisp sentences, preserve EVERY SINGLE SENTENCE as its own dedicated scene!
+  if (expanded.length <= 12) {
+    return expanded;
+  }
+
+  // Group longer stories cleanly into up to 12 dramatic scenes
   const beats = [];
   for (const s of expanded) {
     if (beats.length === 0) {
@@ -56,9 +63,8 @@ function splitStoryBeats(rawStory) {
     }
     const prevWords = beats[beats.length - 1].split(/\s+/).length;
     const curWords = s.split(/\s+/).length;
-    // Keep crucial dramatic moments (rabbit turn, well peer, leap into well, finale) in their own dedicated scenes!
-    const isKeyMoment = /\b(khargosh ki baari|tarkeeb|kuein mein jhank|saya|chalaang|doob|bacha li)\b/i.test(s);
-    if (!isKeyMoment && prevWords + curWords <= 27 && expanded.length > 8) {
+    const isKeyMoment = /\b(khargosh ki baari|tarkeeb|kuein mein jhank|saya|chalaang|doob|bacha li|whistle|ducked|kicked|counting down|stood back up|crushing punch|ultimate champion)\b/i.test(s);
+    if (!isKeyMoment && prevWords + curWords <= 27) {
       beats[beats.length - 1] = `${beats[beats.length - 1]} ${s}`;
     } else {
       beats.push(s);
@@ -81,11 +87,36 @@ function analyzeSentenceVisuals(sentence, index, total) {
     /\b(aqalmandi se sab ki jaan|jaan bacha|khushi|jeet|kamyab|saved everyone|بچا لی|کامیاب)\b/.test(low) &&
     index >= total - 2;
 
+  const hasBoxingOrFight = /\b(fighter|boxer|ring|referee|whistle|punch|ducked|avoided|kicked|ribs|counting down|jaw|mat|champion|challenger|knockout|muqabla|pehalwan)\b/.test(low);
+
   // Determine exact Animated Stage Action!
   let stageAction = 'none';
   let archetype = 'enchanted_forest';
 
-  if (hasLeapOrDrown && (hasWell || hasLion)) {
+  if (hasBoxingOrFight || /\b(leo|shadow)\b/.test(low)) {
+    archetype = 'boxing_arena';
+    if (/\b(fell heavily|onto the mat|declared|ultimate champion|won the match)\b/.test(low)) {
+      stageAction = 'leo_ultimate_champion';
+    } else if (/\b(jaw|landed a perfect|crushing punch|moved forward|final blow|uppercut)\b/.test(low)) {
+      stageAction = 'leo_crushing_jaw_punch';
+    } else if (/\b(refused to give up|gathered his strength|stood back up|back on his feet)\b/.test(low)) {
+      stageAction = 'leo_rises_aura';
+    } else if (/\b(counting down|went completely silent|started counting)\b/.test(low)) {
+      stageAction = 'referee_countdown';
+    } else if (/\b(kicked|ribs|crashing to the ground)\b/.test(low)) {
+      stageAction = 'shadow_kicks_leo_down';
+    } else if (/\b(ducked|avoided|dodged)\b/.test(low)) {
+      stageAction = 'leo_ducks_punch';
+    } else if (/\b(attacked first|threw a powerful punch|at leo)\b/.test(low)) {
+      stageAction = 'shadow_throws_punch';
+    } else if (/\b(referee|whistle|cheered loudly)\b/.test(low)) {
+      stageAction = 'referee_whistle_start';
+    } else if (/\b(challenger|walked into the ring|giant)\b/.test(low)) {
+      stageAction = 'challenger_shadow_enters';
+    } else {
+      stageAction = 'fighter_champion_intro';
+    }
+  } else if (hasLeapOrDrown && (hasWell || hasLion)) {
     stageAction = 'well_leap_and_splash';
     archetype = 'stormy_rain';
   } else if (hasCelebration && (hasRabbit || hasAnimalsGroup)) {
@@ -167,6 +198,9 @@ function inferBestMusicForStory(storyText) {
   if (/\b(allah|sabr|shukar|dua|namaz|masjid|quran|اللہ|صبر|دعا)\b/.test(low)) {
     return 'spiritual_ambient';
   }
+  if (/\b(fighter|punch|kicked|ring|champion|shadow|knockout)\b/.test(low)) {
+    return 'dramatic_tension';
+  }
   if (/\b(khauf|shikaar|sher|raaz|andhera|toofan|gusse|شیر|خوف)\b/.test(low)) {
     return 'cinematic_epic';
   }
@@ -195,7 +229,9 @@ function parseStoryIntoScenes(storyText, { visualStyle = 'cinematic' } = {}) {
 
   // Smart story title extraction
   let smartTitle = 'Meri AI Story Video';
-  if (/\bsher\b/i.test(normalized) && /\bkhargosh\b/i.test(normalized)) {
+  if (/\bleo\b/i.test(normalized) && /\bshadow\b/i.test(normalized)) {
+    smartTitle = 'Leo vs Shadow — Ultimate Street Fighter';
+  } else if (/\bsher\b/i.test(normalized) && /\bkhargosh\b/i.test(normalized)) {
     smartTitle = 'Sher Aur Samajhdar Khargosh';
   } else {
     smartTitle = normalized.split(/\s+/).slice(0, 6).join(' ').replace(/[.!?۔،,]+$/, '') || smartTitle;

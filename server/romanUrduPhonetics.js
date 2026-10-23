@@ -106,6 +106,7 @@ const URDU_WORD_LEXICON = {
 
 function stripMarkdownForSpeech(text = '') {
   return String(text || '')
+    .replace(/^\s*\d+[.)]\s*/gm, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
     .replace(/__([^_]+)__/g, '$1')

@@ -518,6 +518,113 @@ function renderProceduralBackdrop(width, height, archetype = 'golden_mountains',
     }
   }
 
+  if (archetype === 'boxing_arena') {
+    // Championship Night Stadium Sky & Overhead Arena Lighting Rig
+    const bg = ctx.createLinearGradient(0, 0, 0, height);
+    bg.addColorStop(0, '#050814');
+    bg.addColorStop(0.45, '#0f172a');
+    bg.addColorStop(0.70, '#1e1b4b');
+    bg.addColorStop(1, '#090d1a');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+
+    // Dramatic angled stadium spotlight beams (Crimson/Gold Left vs Violet/Cyan Right + Center White)
+    const beams = [
+      { topX: width * 0.18, botX: width * 0.42, color: 'rgba(251, 191, 36, 0.18)' },
+      { topX: width * 0.82, botX: width * 0.58, color: 'rgba(168, 85, 247, 0.20)' },
+      { topX: width * 0.50, botX: width * 0.50, color: 'rgba(56, 189, 248, 0.14)' },
+    ];
+    for (const b of beams) {
+      const g = ctx.createLinearGradient(b.topX, 0, b.botX, height * 0.72);
+      g.addColorStop(0, b.color);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(b.topX - width * 0.04, 0);
+      ctx.lineTo(b.topX + width * 0.04, 0);
+      ctx.lineTo(b.botX + width * 0.26, height * 0.74);
+      ctx.lineTo(b.botX - width * 0.26, height * 0.74);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Overhead Arena Light Truss & Glowing Lamp Pods
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(width * 0.12, height * 0.05, width * 0.76, height * 0.022);
+    for (let i = 0; i < 6; i++) {
+      const lx = width * (0.17 + i * 0.132);
+      const ly = height * 0.072;
+      const halo = ctx.createRadialGradient(lx, ly, 2, lx, ly, width * 0.07);
+      halo.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      halo.addColorStop(0.35, 'rgba(251, 191, 36, 0.35)');
+      halo.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(lx, ly, width * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Stadium Tiered Crowd Silhouettes & Camera Flashes
+    for (let row = 0; row < 3; row++) {
+      const rowY = height * (0.47 + row * 0.055);
+      ctx.fillStyle = row === 0 ? 'rgba(15, 23, 42, 0.85)' : row === 1 ? '#0b1120' : '#060913';
+      ctx.fillRect(0, rowY, width, height * 0.16);
+      const count = 26;
+      for (let c = 0; c < count; c++) {
+        const cx = ((c + (row % 2) * 0.5) / count) * width;
+        const headR = width * 0.015;
+        ctx.beginPath();
+        ctx.arc(cx, rowY - headR * 0.6 + (rng() - 0.5) * 6, headR, 0, Math.PI * 2);
+        ctx.fill();
+        if (rng() > 0.84) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(254, 249, 195, 0.75)';
+          ctx.beginPath();
+          ctx.arc(cx, rowY - headR * 0.5, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // Boxing Ring Back Ropes & Corner Turnbuckle Posts
+    const ropeTopY = height * 0.535;
+    const ropeSpacing = height * 0.036;
+    const postLeftX = width * 0.07;
+    const postRightX = width * 0.93;
+
+    for (let r = 0; r < 3; r++) {
+      const ry = ropeTopY + r * ropeSpacing;
+      ctx.strokeStyle = r === 0 ? '#ef4444' : r === 1 ? '#f8fafc' : '#3b82f6';
+      ctx.lineWidth = Math.max(3.5, height * 0.0055);
+      ctx.beginPath();
+      ctx.moveTo(postLeftX, ry);
+      ctx.lineTo(postRightX, ry);
+      ctx.stroke();
+    }
+
+    // Left Red Corner Post & Right Shadow/Blue Corner Post
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(postLeftX - width * 0.018, ropeTopY - height * 0.02, width * 0.036, height * 0.16);
+    ctx.fillStyle = '#4f46e5';
+    ctx.fillRect(postRightX - width * 0.018, ropeTopY - height * 0.02, width * 0.036, height * 0.16);
+
+    // Perspective Championship Canvas Mat Floor (0.645h -> 1.0h)
+    const matGrad = ctx.createLinearGradient(0, height * 0.64, 0, height);
+    matGrad.addColorStop(0, '#1e293b');
+    matGrad.addColorStop(0.28, '#334155');
+    matGrad.addColorStop(0.32, '#0f172a');
+    matGrad.addColorStop(1, '#050811');
+    ctx.fillStyle = matGrad;
+    ctx.fillRect(0, height * 0.64, width, height * 0.36);
+
+    // Crisp Ring Apron Trim Line
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, height * 0.725, width, height * 0.012);
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(0, height * 0.737, width, height * 0.055);
+  }
+
   const vig = ctx.createRadialGradient(
     width * 0.5,
     height * 0.45,

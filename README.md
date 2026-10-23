@@ -4,14 +4,12 @@
 
 ---
 
-## 🎬 Generated Demo Video: *"Sher Aur Samajhdar Khargosh"*
+## 🎬 Generated Demo Videos (100% Free & Copyright-Safe)
 
-<p align="center">
-  <img src="./preview/Sher_Aur_Khargosh_Preview.gif" alt="Sher Aur Samajhdar Khargosh Animated Video Preview" width="340" />
-</p>
-
-- 🎥 **[Download / Watch Full HD Video With AI Voice (`videos/Sher_Aur_Samajhdar_Khargosh.mp4` — 1m 15s)](./videos/Sher_Aur_Samajhdar_Khargosh.mp4)**
-- 🎙️ **[Download Studio AI Voiceover + Music (`videos/Sher_Aur_Samajhdar_Khargosh.mp3`)](./videos/Sher_Aur_Samajhdar_Khargosh.mp3)**
+| 🥊 English Action Story: *"Leo vs Shadow"* | 🦁 Roman-Urdu Moral Story: *"Sher Aur Khargosh"* |
+| :---: | :---: |
+| <img src="./preview/Leo_vs_Shadow_Preview.gif" alt="Leo vs Shadow Animated Video Preview" width="300" /> | <img src="./preview/Sher_Aur_Khargosh_Preview.gif" alt="Sher Aur Samajhdar Khargosh Animated Video Preview" width="300" /> |
+| 🎥 **[Full HD English Video (`.MP4`)](./videos/Leo_vs_Shadow_Street_Fighter.mp4)**<br/>🎙️ **[English Voice + Score (`.MP3`)](./videos/Leo_vs_Shadow_Street_Fighter.mp3)** | 🎥 **[Full HD Roman-Urdu Video (`.MP4`)](./videos/Sher_Aur_Samajhdar_Khargosh.mp4)**<br/>🎙️ **[Roman-Urdu Voice + Score (`.MP3`)](./videos/Sher_Aur_Samajhdar_Khargosh.mp3)** |
 
 ---
 

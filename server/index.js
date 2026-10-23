@@ -27,10 +27,34 @@ if (process.argv.includes('--production')) {
 fs.mkdirSync(MEDIA_DIR, { recursive: true });
 
 function buildDefaultDemoVideos() {
+  const items = [];
+  const leoMp4 = path.join(VIDEOS_DIR, 'Leo_vs_Shadow_Street_Fighter.mp4');
+  if (fs.existsSync(leoMp4)) {
+    items.push({
+      id: 'demo_leo_vs_shadow',
+      title: 'Leo vs Shadow — Ultimate Street Fighter',
+      aspectRatio: '9:16',
+      visualStyle: 'cinematic',
+      captionStyle: 'karaoke_pill',
+      voice: 'am_michael',
+      voiceName: 'Michael (Action Narrator)',
+      musicStyle: 'dramatic_tension',
+      duration: 52.0,
+      width: 720,
+      height: 1280,
+      scenesCount: 10,
+      lang: 'en-us',
+      url: '/videos/Leo_vs_Shadow_Street_Fighter.mp4',
+      audioUrl: fs.existsSync(path.join(VIDEOS_DIR, 'Leo_vs_Shadow_Street_Fighter.mp3'))
+        ? '/videos/Leo_vs_Shadow_Street_Fighter.mp3'
+        : null,
+      thumbUrl: null,
+      createdAt: new Date().toISOString(),
+    });
+  }
   const demoMp4 = path.join(VIDEOS_DIR, 'Sher_Aur_Samajhdar_Khargosh.mp4');
-  if (!fs.existsSync(demoMp4)) return [];
-  return [
-    {
+  if (fs.existsSync(demoMp4)) {
+    items.push({
       id: 'demo_sher_aur_khargosh',
       title: 'Sher Aur Samajhdar Khargosh',
       aspectRatio: '9:16',
@@ -50,8 +74,9 @@ function buildDefaultDemoVideos() {
         : null,
       thumbUrl: null,
       createdAt: new Date().toISOString(),
-    },
-  ];
+    });
+  }
+  return items;
 }
 
 function readLibrary() {

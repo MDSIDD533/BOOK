@@ -1,5 +1,23 @@
 export const READY_STORIES = [
   {
+    id: 'leo_vs_shadow',
+    badge: '🥊 Leo vs Shadow (English Action)',
+    title: 'Leo vs Shadow — Ultimate Street Fighter',
+    lang: 'en-us',
+    voice: 'am_michael',
+    aspectRatio: '9:16',
+    story: `Leo was a well-known street fighter who never lost a match.
+One evening, a giant challenger named Shadow walked into the ring.
+The crowd cheered loudly as the referee blew the starting whistle.
+Shadow attacked first and threw a powerful punch right at Leo's face.
+Leo quickly ducked down and avoided the dangerous hit just in time.
+Shadow then kicked Leo hard in the ribs, sending him crashing to the ground.
+The crowd went completely silent as the referee started counting down.
+Leo refused to give up, gathered his strength, and stood back up on his feet.
+He swiftly moved forward and landed a perfect, crushing punch on Shadow's jaw.
+Shadow fell heavily onto the mat, and Leo was declared the ultimate champion!`,
+  },
+  {
     id: 'sher_khargosh',
     badge: '🦁 Sher Aur Samajhdar Khargosh',
     title: 'Sher Aur Samajhdar Khargosh',
@@ -121,6 +139,7 @@ export const VOICE_SAMPLE_SCRIPTS = [
 ];
 
 export const SCENE_ARCHETYPES = [
+  { id: 'boxing_arena', label: '🥊 Championship Boxing Ring & Crowd' },
   { id: 'village_cottage', label: '🏡 Peaceful Village & Cottages' },
   { id: 'golden_mountains', label: '🏔️ Golden Sunrise Mountains' },
   { id: 'stormy_rain', label: '⛈️ Stormy Night & Lightning' },
